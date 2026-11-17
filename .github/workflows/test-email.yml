@@ -1,0 +1,63 @@
+
+name: Test QQ Email
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-email:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send test email
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+
+        run: |
+          python - <<'PY'
+          import os
+          import ssl
+          import smtplib
+          from email.message import EmailMessage
+
+          required = [
+              "SMTP_HOST",
+              "SMTP_USER",
+              "SMTP_PASSWORD",
+              "EMAIL_FROM",
+              "EMAIL_TO"
+          ]
+
+          missing = [x for x in required if not os.getenv(x)]
+          if missing:
+              raise RuntimeError(f"缺少配置：{missing}")
+
+          msg = EmailMessage()
+          msg["Subject"] = "PriceAI 价格监控邮件测试"
+          msg["From"] = os.environ["EMAIL_FROM"]
+          msg["To"] = os.environ["EMAIL_TO"]
+          msg.set_content(
+              "恭喜！你的 PriceAI 价格监控邮件配置成功。\n\n"
+              "后续当 ChatGPT Plus 价格达到提醒条件时，"
+              "系统会自动发送价格通知。"
+          )
+
+          with smtplib.SMTP_SSL(
+              os.environ["SMTP_HOST"],
+              int(os.getenv("SMTP_PORT", "465")),
+              context=ssl.create_default_context(),
+              timeout=30
+          ) as server:
+              server.login(
+                  os.environ["SMTP_USER"],
+                  os.environ["SMTP_PASSWORD"]
+              )
+              server.send_message(msg)
+
+          print("QQ 邮件测试发送成功！")
+          PY
